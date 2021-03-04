@@ -1,5 +1,5 @@
 /// Matrix determinant trait, requires `Square` trait in order to be implemented
-pub trait Determinant: Square {
+pub trait Determinant {
     type Output;
     fn det(&self) -> Self::Output;
 }
@@ -10,25 +10,17 @@ pub trait Transpose {
 }
 
 /// Matrix inverse trait, requires `Square` trait in order to be implemented
-pub trait Inverse: Square + Determinant + Adjugate {
+pub trait Inverse: Determinant + Adjugate {
     type Output;
     fn inv(&self) -> <Self as crate::traits::Inverse>::Output;
 }
-pub trait Adjugate: Square + CofactorMatrix {
+pub trait Adjugate: CofactorMatrix {
     type Output;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output;
 }
 
-pub trait CofactorMatrix: Square {
+pub trait CofactorMatrix {
     type Output;
     fn cof(&self) -> <Self as crate::traits::CofactorMatrix>::Output;
 }
-
-/// simple marker trait to indicate the identity matrix,
-/// requires the `Square` trait to be implemented
-pub trait Identity: Square {}
-
-/// Simple marker trait to indicate a square matrix
-/// implemented for all `Matrix<T, N, N>`
-pub trait Square {}
 

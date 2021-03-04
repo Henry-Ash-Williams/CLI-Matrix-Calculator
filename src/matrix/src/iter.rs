@@ -8,14 +8,14 @@ pub struct Iter<'a, T> {
     shape: (usize, usize),
 }
 
-impl<'a, T: Copy, const M: usize, const N: usize> IntoIterator for &Matrix<'a, T, M, N> {
+impl<'a, T: Copy> IntoIterator for &Matrix<'a, T> {
     type Item = T;
     type IntoIter = Iter<'a, T>;
     fn into_iter(self) -> Self::IntoIter {
         Iter {
             iter: self.flatten_to_vec().into_iter(),
             _phantom: PhantomData,
-            shape: (M, N),
+            shape: (self.shape.m, self.shape.n),
         }
     }
 }
@@ -27,18 +27,18 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T, const M: usize, const N: usize> FromIterator<T> for Matrix<'a, T, M, N> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut data: Vec<T> = Vec::new();
-        // store the data in a Vec<T>
-        for i in iter {
-            data.push(i);
-        }
+// impl<'a, T, const M: usize, const N: usize> FromIterator<T> for Matrix<'a, T, M, N> {
+//     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+//         let mut data: Vec<T> = Vec::new();
+//         // store the data in a Vec<T>
+//         for i in iter {
+//             data.push(i);
+//         }
 
-        for i in data.chunks(M).enumerate() {
-        }
+//         for i in data.chunks(M).enumerate() {
+//         }
 
 
-        todo!()
-    }
-}
+//         todo!()
+//     }
+// }
