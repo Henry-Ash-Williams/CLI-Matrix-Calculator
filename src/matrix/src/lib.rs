@@ -1,21 +1,18 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
-extern crate prettytable;
-
-
-use std::{convert::TryInto, ops::Div};
+use std::convert::TryInto;
+use std::ops::Div;
 use std::fmt;
-use std::fmt::{Display, Formatter};
-// use std::iter::{IntoIterator, Iterator};
+use std::fmt::{Display, Formatter, Debug};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign};
+use std::str::FromStr;
 
 pub mod iter;
 pub mod traits;
-// pub mod matrix_slice;
+pub mod matrix_macro;
 
 pub use traits::*;
-// pub use matrix_slice::*;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Matrix<'a, T> {
@@ -50,17 +47,26 @@ impl<'a, T> Matrix<'a, T> {
         }
         Self::from_array(matrix_data)
     }
-
     
-    pub fn get_minor(&self, idx: (usize, usize)) -> T
+    pub fn from_string<S>(input: S) -> Self 
     where
-        T: Copy + From<i32> + Eq + Display,
+        S: AsRef<str>,
+        T: FromStr + Copy + Debug,
+        <T as FromStr>::Err: Debug,
+
     {
-        let mut minor: Matrix<'a, T> = Matrix::new((self.shape.m - 1, self.shape.n - 1));
+        From::from(input)
+    }
+    
+    pub fn get_minor(&self, m: usize, n: usize) -> T
+    where
+        T: Copy + From<i32> + Eq 
+    {
+        let mut minor: Matrix<'a, T> = Matrix::new(self.shape.m - 1, self.shape.n - 1);
 
         for i in self.data.iter().enumerate() {
             for j in i.1.iter().enumerate() {
-                if i.0 != idx.0 && j.0 != idx.1 {
+                if i.0 != m && j.0 != n {
                     minor[(i.0, j.0)] = self[(i.0, j.0)];
                 }
             }
@@ -69,13 +75,23 @@ impl<'a, T> Matrix<'a, T> {
         minor.det()
     }
 
-    pub fn new(shape: (usize, usize)) -> Self
+    pub fn new(m: usize, n: usize) -> Self
     where
         T: From<i32> + Copy,
     {
+        let mut temp_m = Vec::new();
+        
+        for i in 0 .. m {
+            let mut temp_n = Vec::new();
+            for i in 0 .. n {
+                temp_n.push(0.into());
+            }
+            temp_m.push(temp_n);
+        }
+
         Self {
-            data: Vec::new(),
-            shape: Shape {m: shape.0, n: shape.1},
+            data: temp_m,
+            shape: Shape {m, n},
             _phantom: PhantomData,
         }
     }
@@ -84,13 +100,7 @@ impl<'a, T> Matrix<'a, T> {
     where 
         T: Copy 
     {
-        for i in array.iter().enumerate().next() {
-            if i.1.len() != array[i.0 - 1].len() {
-                panic!("TODO")
-            }
-        }
         Self {
-            // data: array,
             shape: Shape {m: array.len(), n: array[0].len()},
             data: array,
             _phantom: PhantomData,
@@ -115,11 +125,12 @@ impl<'a, T> Matrix<'a, T> {
         }
     }
 
-    pub fn multiply_checked(&self, other: Self) -> Result<Self, ()> 
+    pub fn mul_checked(&self, other: Self) -> Result<Self, ()> 
     where
         T: Add<Output = T> + AddAssign + Mul<Output = T> + Copy + From<i32>,
     {
         if self.shape.n != other.shape.m {
+            println!("Cannot multiply matrix of shape {:?} by matrix of shape {:?}", self.shape, other.shape);
             Err(())
         } else {
             Ok(self.clone() * other)
@@ -164,7 +175,7 @@ where
             panic!("TODO")
         }
 
-        let mut out: Self = Matrix::new((self.shape.m, self.shape.n));
+        let mut out: Self = Matrix::new(self.shape.m, self.shape.n);
         for i in 0..self.shape.m {
             for j in 0..self.shape.n {
                 out[(i, j)] = self[(i, j)] + rhs[(i, j)];
@@ -201,7 +212,7 @@ where
             panic!("Shape error");
         }
 
-        let mut out: Self = Matrix::new((self.shape.m, self.shape.n));
+        let mut out: Self = Matrix::new(self.shape.m, self.shape.n);
         for i in 0..self.shape.m {
             for j in 0..self.shape.n {
                 out[(i, j)] = self[(i, j)] - rhs[(i, j)];
@@ -234,7 +245,7 @@ where
     type Output = Self;
     /// Implementation of matrix scaling
     fn mul(self, scalar: T) -> Self::Output {
-        let mut out: Self = Matrix::new((self.shape.m, self.shape.n));
+        let mut out: Self = Matrix::new(self.shape.m, self.shape.n);
         for i in 0..self.shape.m {
             for j in 0..self.shape.n {
                 out[(i, j)] = self[(i, j)] * scalar;
@@ -278,7 +289,7 @@ where
         let n = self.shape.n;
         let p = rhs.shape.n;
 
-        let mut out: Self::Output = Matrix::new((n, p));
+        let mut out: Self::Output = Matrix::new(m, p);
 
         for i in 0..m {
             for j in 0..p {
@@ -300,7 +311,7 @@ where
     type Output = Matrix<'a, T>;
 
     fn transpose(&self) -> Self::Output {
-        let mut transposed_matrix: Self::Output = Matrix::new((self.shape.n, self.shape.m));
+        let mut transposed_matrix: Self::Output = Matrix::new(self.shape.n, self.shape.m);
 
         for i in self.data.iter().enumerate() {
             for j in i.1.iter().enumerate() {
@@ -316,7 +327,7 @@ where
 
 impl<'a, T> Inverse for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + Eq + Div<Output = T>
+    T: Copy + From<i32> + Eq + Div<Output = T> + MulAssign
 {
     type Output = Self;
     fn inv(&self) -> <Self as crate::traits::Inverse>::Output {
@@ -334,7 +345,7 @@ where
 
 impl<'a, T> Adjugate for Matrix<'a, T> 
 where 
-    T: Copy + From<i32>
+    T: Copy + From<i32> + Eq + MulAssign
 {
     type Output = Self;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output {
@@ -344,17 +355,60 @@ where
 
 impl<'a, T> CofactorMatrix for Matrix<'a, T> 
 where 
-    T: Copy + From<i32>
+    T: Copy + From<i32> + Eq + MulAssign
 {
     type Output = Self;
     fn cof(&self) -> <Self as crate::traits::CofactorMatrix>::Output {
+        let mut cofactor_matrix = Matrix::new(self.shape.m, self.shape.n);
         if self.shape.m != self.shape.n {
             panic!("Cofactor matrix cannot be found for rectangular matrices");
+        }
+
+        for i in self.data.iter().enumerate() {
+            for j in i.1.iter().enumerate() {
+                let curr_pos = (i.0 * self.shape.m) + j.0; 
+
+                if curr_pos % 2 == 0 {
+                    cofactor_matrix[(i.0, j.0)] = -1.into();
+                } else {
+                    cofactor_matrix[(i.0, j.0)] = 1.into();
+                }
+
+                cofactor_matrix[(i.0, j.0)] *= self.get_minor(i.0, j.0);
+            }
         }
         todo!()
     }
 }
 
+impl<'a, T: Copy + FromStr + Debug, S: AsRef<str>> From<S> for Matrix<'a, T> 
+where
+    T: Copy + FromStr + Debug,
+    <T as FromStr>::Err: Debug
+{
+    fn from(input: S) -> Matrix<'a, T> {
+        let mut input: String = input.as_ref().to_string();
+        
+        input.remove(0); 
+        input.remove(input.len() - 1);
+
+        let mut rows: Vec<&str> = input.split(';').collect();
+
+        let data_raw: Vec<Vec<&str>> = rows.iter().map(|r| r.split(',').collect()).collect();
+
+        let mut data: Vec<Vec<T>> = Vec::new();
+
+        for r in data_raw.iter() {
+            let mut data_row: Vec<T> = Vec::new();
+            for e in r.iter() {
+                data_row.push(e.parse::<T>().unwrap());
+            }
+            data.push(data_row);
+        }
+
+        Matrix::from_array(data)
+    }
+}
 
 impl<'a, T> Determinant for Matrix<'a, T> 
 where
@@ -362,34 +416,6 @@ where
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
-        /* let mut n_1: i32;
-        let mut n_2: i32;
-        let mut det: T = 1.into();
-        let mut index: usize;
-        let mut total = 2;
-
-        if self.shape.m != self.shape.n {
-            panic!("Cannot find the determinant of a rectangular matrix");
-        }
-
-        for i in self.data.iter().enumerate() {
-            index = i.0;
-
-            while self[(index as usize, i.0)] == 0.into() && index < self.shape.n {
-                index += 1;
-            }
-
-            if index == self.shape.n {
-                continue;
-            }
-
-            if index != i.0 {
-                for j in 0 .. self.shape.n {
-                    std::mem::swap(&mut self[(index, j)], &mut self[(i.0, j)]);
-                }
-            }
-        }
-        det */
         todo!()
     }
 }

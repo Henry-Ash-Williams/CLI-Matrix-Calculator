@@ -3,6 +3,7 @@ pub trait Determinant {
     type Output;
     fn det(&self) -> Self::Output;
 }
+
 /// Matrix transposition trait, can be done for any MxN matrix, hence the `Square` trait is not required
 pub trait Transpose {
     type Output;
