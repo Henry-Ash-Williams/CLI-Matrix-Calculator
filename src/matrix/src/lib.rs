@@ -1,6 +1,5 @@
-#![allow(dead_code, unused_variables, unused_imports)]
+extern crate num;
 
-use std::convert::TryInto;
 use std::ops::Div;
 use std::fmt;
 use std::fmt::{Display, Formatter, Debug};
@@ -8,23 +7,24 @@ use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-pub mod iter;
+use num::traits::*;
+
 pub mod traits;
 pub mod matrix_macro;
 
 pub use traits::*;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct Matrix<'a, T> {
     data: Vec<Vec<T>>,
     shape: Shape,
     _phantom: PhantomData<&'a T>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Copy)]
 pub struct Shape {
-    m: usize,
-    n: usize
+    pub m: usize,
+    pub n: usize
 }
 
 impl Shape {
@@ -34,9 +34,13 @@ impl Shape {
             n,
         }
     }
+
+    pub fn as_tuple(&self) -> (usize, usize) {
+        (self.m, self.n)
+    }
 }
 
-impl<'a, T> Matrix<'a, T> {
+impl<'a, T: Float> Matrix<'a, T> {
     pub fn identity(shape: usize) -> Self 
     where 
         T: From<i32> + Copy 
@@ -48,6 +52,7 @@ impl<'a, T> Matrix<'a, T> {
         Self::from_array(matrix_data)
     }
     
+    /// Wrapper function for From trait    
     pub fn from_string<S>(input: S) -> Self 
     where
         S: AsRef<str>,
@@ -60,19 +65,25 @@ impl<'a, T> Matrix<'a, T> {
     
     pub fn get_minor(&self, m: usize, n: usize) -> T
     where
-        T: Copy + From<i32> + Eq 
+        T: Copy + From<i32> + PartialEq + Float,
+        Matrix<'a, T>: Determinant<Output = T> 
     {
-        let mut minor: Matrix<'a, T> = Matrix::new(self.shape.m - 1, self.shape.n - 1);
+        let mut minor_data: Vec<Vec<T>> = Vec::new();
 
         for i in self.data.iter().enumerate() {
+            let mut minor_data_row: Vec<T> = Vec::new();
             for j in i.1.iter().enumerate() {
                 if i.0 != m && j.0 != n {
-                    minor[(i.0, j.0)] = self[(i.0, j.0)];
+                    minor_data_row.push(self[(i.0, j.0)]);
                 }
             }
+            minor_data.push(minor_data_row); 
         }
-        // println!("{}", minor);  
-        minor.det()
+
+        match self.shape_tuple() {
+            (2, 2) => (*minor_data.iter().flatten().nth(0).unwrap()).abs(),
+            _ => Matrix::from_array(minor_data).det()
+        }
     }
 
     pub fn new(m: usize, n: usize) -> Self
@@ -81,9 +92,9 @@ impl<'a, T> Matrix<'a, T> {
     {
         let mut temp_m = Vec::new();
         
-        for i in 0 .. m {
+        for _ in 0 .. m {
             let mut temp_n = Vec::new();
-            for i in 0 .. n {
+            for _ in 0 .. n {
                 temp_n.push(0.into());
             }
             temp_m.push(temp_n);
@@ -107,11 +118,12 @@ impl<'a, T> Matrix<'a, T> {
         }   
     }
 
-    pub(crate) fn flatten_to_vec(&self) -> Vec<T> 
-    where 
-        T: Copy
-    {
-        self.data.iter().flatten().copied().collect()
+    pub fn shape(&self) -> Shape {
+        self.shape 
+    }
+
+    pub fn shape_tuple(&self) -> (usize, usize) {
+        self.shape.as_tuple()
     }
 
     pub fn add_checked(&self, other: Self) -> Result<Self, ()> 
@@ -166,7 +178,7 @@ impl<'a, T: 'a> IndexMut<(usize, usize)> for Matrix<'a, T> {
 
 impl<'a, T> Add for Matrix<'a, T>
 where
-    T: Add<Output = T> + Copy + From<i32>,
+    T: Add<Output = T> + Copy + From<i32> + Float,
 {
     type Output = Self;
 
@@ -203,7 +215,7 @@ where
 
 impl<'a, T> Sub for Matrix<'a, T>
 where
-    T: Sub<Output = T> + Copy + From<i32>,
+    T: Sub<Output = T> + Copy + From<i32> + Float,
 {
     type Output = Self;
 
@@ -240,7 +252,7 @@ where
 
 impl<'a, T> Mul<T> for Matrix<'a, T>
 where
-    T: Mul<Output = T> + Copy + From<i32>,
+    T: Mul<Output = T> + Copy + From<i32> + Float,
 {
     type Output = Self;
     /// Implementation of matrix scaling
@@ -269,14 +281,9 @@ where
     }
 }
 
-/*
-
-A_mn * B_np = C_mp
-*/
-
 impl<'a, T> Mul<Matrix<'a, T>> for Matrix<'a, T>
 where
-    T: Add<Output = T> + AddAssign + Mul<Output = T> + Copy + From<i32>,
+    T: Add<Output = T> + AddAssign + Mul<Output = T> + Copy + From<i32> + Float,
 {
     type Output = Matrix<'a, T>;
 
@@ -306,7 +313,7 @@ where
 
 impl<'a, T> Transpose for Matrix<'a, T> 
 where 
-    T: Copy + From<i32>
+    T: Copy + From<i32> + Float
 {
     type Output = Matrix<'a, T>;
 
@@ -327,7 +334,7 @@ where
 
 impl<'a, T> Inverse for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + Eq + Div<Output = T> + MulAssign
+    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + 
 {
     type Output = Self;
     fn inv(&self) -> <Self as crate::traits::Inverse>::Output {
@@ -337,7 +344,7 @@ where
         if self.det() == 0.into() {
             panic!("Matrix is not invertable");
         } else {
-            // (1.into() / self.det()) * self.adj()
+            // (<T>::from(1) / self.det()) * self.adj()
             todo!()
         }
     }   
@@ -345,7 +352,7 @@ where
 
 impl<'a, T> Adjugate for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + Eq + MulAssign
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float +  
 {
     type Output = Self;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output {
@@ -355,7 +362,7 @@ where
 
 impl<'a, T> CofactorMatrix for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + Eq + MulAssign
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + 
 {
     type Output = Self;
     fn cof(&self) -> <Self as crate::traits::CofactorMatrix>::Output {
@@ -369,21 +376,21 @@ where
                 let curr_pos = (i.0 * self.shape.m) + j.0; 
 
                 if curr_pos % 2 == 0 {
-                    cofactor_matrix[(i.0, j.0)] = -1.into();
+                    cofactor_matrix[(i.0, j.0)] = num::NumCast::from(1.0).unwrap();
                 } else {
-                    cofactor_matrix[(i.0, j.0)] = 1.into();
+                    cofactor_matrix[(i.0, j.0)] = num::NumCast::from(-1.0).unwrap(); 
                 }
 
                 cofactor_matrix[(i.0, j.0)] *= self.get_minor(i.0, j.0);
             }
         }
-        todo!()
+        cofactor_matrix
     }
 }
 
 impl<'a, T: Copy + FromStr + Debug, S: AsRef<str>> From<S> for Matrix<'a, T> 
 where
-    T: Copy + FromStr + Debug,
+    T: Copy + FromStr + Debug + Float,
     <T as FromStr>::Err: Debug
 {
     fn from(input: S) -> Matrix<'a, T> {
@@ -392,10 +399,8 @@ where
         input.remove(0); 
         input.remove(input.len() - 1);
 
-        let mut rows: Vec<&str> = input.split(';').collect();
-
+        let rows: Vec<&str> = input.split(';').collect();
         let data_raw: Vec<Vec<&str>> = rows.iter().map(|r| r.split(',').collect()).collect();
-
         let mut data: Vec<Vec<T>> = Vec::new();
 
         for r in data_raw.iter() {
@@ -406,17 +411,26 @@ where
             data.push(data_row);
         }
 
+
         Matrix::from_array(data)
     }
 }
 
-impl<'a, T> Determinant for Matrix<'a, T> 
+impl<'a, T: Float> Determinant for Matrix<'a, T> 
 where
-    T: Eq + From<i32>
+    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
-        todo!()
+
+        if self.shape_tuple() == (2, 2) {
+            // Recursive base case for 2x2 matrix 
+            println!("Base case reached");
+            self[(0,0)] * self[(1,1)] - self[(0,1)] * self[(1,0)] 
+        } else {
+            // TODO: Write recursion 
+            todo!()
+        }
     }
 }
 
@@ -430,7 +444,7 @@ where
 
         for i in self.data.iter() {
             for j in i.iter() {
-                display.push_str(&format!("{}\t", j));
+                display.push_str(&format!("\t{}", j));
             }
             display.push('\n');
         }
@@ -441,7 +455,7 @@ where
 
 
 
-
+// Rewrite tests, they still use const generics 
 #[cfg(test)]
 mod tests {
     use crate::*;
