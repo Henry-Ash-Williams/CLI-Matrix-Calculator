@@ -41,6 +41,7 @@ impl Shape {
 }
 
 impl<'a, T: Float> Matrix<'a, T> {
+    /// Creates an identity matrix
     pub fn identity(shape: usize) -> Self 
     where 
         T: From<i32> + Copy 
@@ -63,6 +64,7 @@ impl<'a, T: Float> Matrix<'a, T> {
         From::from(input)
     }
     
+    /// Gets the minor matrix 
     pub fn get_minor(&self, m: usize, n: usize) -> T
     where
         T: Copy + From<i32> + PartialEq + Float,
@@ -85,7 +87,8 @@ impl<'a, T: Float> Matrix<'a, T> {
             _ => Matrix::from_array(minor_data).det()
         }
     }
-
+    
+    /// Creates a new matrix of mxn, filled with zeros
     pub fn new(m: usize, n: usize) -> Self
     where
         T: From<i32> + Copy,
@@ -106,7 +109,8 @@ impl<'a, T: Float> Matrix<'a, T> {
             _phantom: PhantomData,
         }
     }
-
+    
+    /// Creates a matrix from an existing 2D vector
     pub fn from_array(array: Vec<Vec<T>>) -> Self 
     where 
         T: Copy 
@@ -117,11 +121,13 @@ impl<'a, T: Float> Matrix<'a, T> {
             _phantom: PhantomData,
         }   
     }
-
+    
+    /// Getter method for the matrix shape
     pub fn shape(&self) -> Shape {
         self.shape 
     }
-
+    
+    /// Same as above, but returns it as a tuple of values 
     pub fn shape_tuple(&self) -> (usize, usize) {
         self.shape.as_tuple()
     }
@@ -334,7 +340,8 @@ where
 
 impl<'a, T> Inverse for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + 
+    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + Debug + AddAssign,
+    Matrix<'a, T>: Mul<Output = Self>
 {
     type Output = Self;
     fn inv(&self) -> <Self as crate::traits::Inverse>::Output {
@@ -344,15 +351,14 @@ where
         if self.det() == 0.into() {
             panic!("Matrix is not invertable");
         } else {
-            // (<T>::from(1) / self.det()) * self.adj()
-            todo!()
+            (num::NumCast::from(1.0).unwrap() / self.det()) * self.adj()
         }
     }   
 }
 
 impl<'a, T> Adjugate for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float +  
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign
 {
     type Output = Self;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output {
@@ -362,7 +368,7 @@ where
 
 impl<'a, T> CofactorMatrix for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + 
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign,
 {
     type Output = Self;
     fn cof(&self) -> <Self as crate::traits::CofactorMatrix>::Output {
@@ -370,18 +376,33 @@ where
         if self.shape.m != self.shape.n {
             panic!("Cofactor matrix cannot be found for rectangular matrices");
         }
+        
 
-        for i in self.data.iter().enumerate() {
-            for j in i.1.iter().enumerate() {
-                let curr_pos = (i.0 * self.shape.m) + j.0; 
+        if self.shape_tuple() == (2, 2) {
+            // Janky solution for 2x2 edge case, i would simplify this to an n * get_minor, but it
+            // causes an issue regarding generic types and such 
+            cofactor_matrix[(0, 0)] = num::NumCast::from(1.0).unwrap();
+            cofactor_matrix[(0, 1)] = num::NumCast::from(-1.0).unwrap();
+            cofactor_matrix[(1, 0)] = num::NumCast::from(-1.0).unwrap();
+            cofactor_matrix[(1, 1)] = num::NumCast::from(1.0).unwrap(); 
+            cofactor_matrix[(0, 0)] *= self.get_minor(0, 0);
+            cofactor_matrix[(0, 1)] *= self.get_minor(0, 1);
+            cofactor_matrix[(1, 0)] *= self.get_minor(1, 0);
+            cofactor_matrix[(1, 1)] *= self.get_minor(1, 1);
 
-                if curr_pos % 2 == 0 {
-                    cofactor_matrix[(i.0, j.0)] = num::NumCast::from(1.0).unwrap();
-                } else {
-                    cofactor_matrix[(i.0, j.0)] = num::NumCast::from(-1.0).unwrap(); 
+        } else {
+            for i in self.data.iter().enumerate() {
+                for j in i.1.iter().enumerate() {
+                    let curr_pos = (i.0 * self.shape.m) + j.0 + 1; 
+
+                    if curr_pos % 2 == 0 {
+                        cofactor_matrix[(i.0, j.0)] = num::NumCast::from(-1.0).unwrap();
+                    } else {
+                        cofactor_matrix[(i.0, j.0)] = num::NumCast::from(1.0).unwrap(); 
+                    }
+
+                    cofactor_matrix[(i.0, j.0)] *= self.get_minor(i.0, j.0);
                 }
-
-                cofactor_matrix[(i.0, j.0)] *= self.get_minor(i.0, j.0);
             }
         }
         cofactor_matrix
@@ -418,18 +439,39 @@ where
 
 impl<'a, T: Float> Determinant for Matrix<'a, T> 
 where
-    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy
+    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy + Debug + AddAssign + MulAssign
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
-
-        if self.shape_tuple() == (2, 2) {
-            // Recursive base case for 2x2 matrix 
-            println!("Base case reached");
+        if self.shape_tuple() == (1, 1) {
+            self[(0, 0)]
+        } else if self.shape_tuple() == (2, 2) {
             self[(0,0)] * self[(1,1)] - self[(0,1)] * self[(1,0)] 
         } else {
-            // TODO: Write recursion 
-            todo!()
+            let mut det: T = num::NumCast::from(0).unwrap();
+            let coeffs: Vec<T> = self.data[0].iter().copied().collect();
+
+            for c in coeffs.iter().enumerate() {
+                let sign = if c.0 % 2 == 0 { -1 } else { 1 }; 
+                let mut minor_data: Vec<Vec<T>> = Vec::new(); 
+                
+                for i in self.data.iter().enumerate() {
+                    let mut minor_row: Vec<T> = Vec::new();
+                    for j in i.1.iter().enumerate() {
+                        if i.0 == c.0 {
+                            continue; 
+                        }
+                        minor_row.push(*j.1); 
+                    }
+                    minor_data.push(minor_row); 
+                }
+                let minor: Matrix<'a, T> = Matrix::from_array(minor_data); 
+                println!("{:?}", minor.shape_tuple());
+                det = *c.1;
+                det *= num::NumCast::from(sign).unwrap();
+                det *= minor.det(); 
+            }
+            det  
         }
     }
 }
