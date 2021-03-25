@@ -340,7 +340,7 @@ where
 
 impl<'a, T> Inverse for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + Debug + AddAssign,
+    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + Debug + AddAssign + Display + SubAssign,
     Matrix<'a, T>: Mul<Output = Self>
 {
     type Output = Self;
@@ -351,14 +351,15 @@ where
         if self.det() == 0.into() {
             panic!("Matrix is not invertable");
         } else {
-            (num::NumCast::from(1.0).unwrap() / self.det()) * self.adj()
+            // (num::NumCast::from(1.0).unwrap() / self.det()) * self.adj()
+            todo!()
         }
     }   
 }
 
 impl<'a, T> Adjugate for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign + Display + SubAssign
 {
     type Output = Self;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output {
@@ -368,7 +369,7 @@ where
 
 impl<'a, T> CofactorMatrix for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign,
+    T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign + Display + SubAssign, 
 {
     type Output = Self;
     fn cof(&self) -> <Self as crate::traits::CofactorMatrix>::Output {
@@ -439,7 +440,7 @@ where
 
 impl<'a, T: Float> Determinant for Matrix<'a, T> 
 where
-    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy + Debug + AddAssign + MulAssign
+    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy + Debug + AddAssign + MulAssign + Display + SubAssign 
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
@@ -448,30 +449,34 @@ where
         } else if self.shape_tuple() == (2, 2) {
             self[(0,0)] * self[(1,1)] - self[(0,1)] * self[(1,0)] 
         } else {
-            let mut det: T = num::NumCast::from(0).unwrap();
-            let coeffs: Vec<T> = self.data[0].iter().copied().collect();
+            let coefficients: &Vec<T> = &self.data[0];
+            let mut det: T = num::NumCast::from(0.0).unwrap();
 
-            for c in coeffs.iter().enumerate() {
-                let sign = if c.0 % 2 == 0 { -1 } else { 1 }; 
-                let mut minor_data: Vec<Vec<T>> = Vec::new(); 
-                
+            for c in coefficients.iter().enumerate() { 
+                let current_coefficient: T = *c.1;
+                let mut minor_data: Vec<Vec<T>> = Vec::with_capacity(self.shape.m);
                 for i in self.data.iter().enumerate() {
-                    let mut minor_row: Vec<T> = Vec::new();
-                    for j in i.1.iter().enumerate() {
-                        if i.0 == c.0 {
-                            continue; 
-                        }
-                        minor_row.push(*j.1); 
+                    if i.0 == 0 {
+                        continue ;
                     }
-                    minor_data.push(minor_row); 
+                    let mut minor_row: Vec<T> = Vec::with_capacity(self.shape.m);
+                    for j in i.1.iter().enumerate() {
+                        if j.0 == c.0 {
+                            continue ;
+                        }
+                        minor_row.push(*j.1);
+                    }
+                    minor_data.push(minor_row);
                 }
-                let minor: Matrix<'a, T> = Matrix::from_array(minor_data); 
-                println!("{:?}", minor.shape_tuple());
-                det = *c.1;
-                det *= num::NumCast::from(sign).unwrap();
-                det *= minor.det(); 
+                let minor = Matrix::from_array(minor_data);
+                if c.0 % 2 == 0 {
+                    det += current_coefficient * minor.det();
+                } else {
+                    det -= current_coefficient * minor.det();
+                }
             }
-            det  
+
+            det 
         }
     }
 }

@@ -1,0 +1,66 @@
+A = 
+	1	1	3
+	7	5	0
+	2	1	9
+
+Minor matrix: 
+	1	3
+
+Minor matrix: 
+	3
+
+- 1 * 3
+Minor matrix: 
+	1
+
++ 3 * 1
+Minor matrix: 
+	3
+
+- 1 * 3
+Minor matrix: 
+	1
+
++ 3 * 1
+- 1 * 0
+Minor matrix: 
+	1	3
+
+Minor matrix: 
+	3
+
+- 1 * 3
+Minor matrix: 
+	1
+
++ 3 * 1
+Minor matrix: 
+	3
+
+- 1 * 3
+Minor matrix: 
+	1
+
++ 3 * 1
++ 1 * 0
+Minor matrix: 
+	1	1
+
+Minor matrix: 
+	1
+
+- 1 * 1
+Minor matrix: 
+	1
+
++ 1 * 1
+Minor matrix: 
+	1
+
+- 1 * 1
+Minor matrix: 
+	1
+
++ 1 * 1
+- 3 * 0
+det(A) = 0
