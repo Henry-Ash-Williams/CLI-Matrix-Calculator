@@ -8,8 +8,8 @@ A command line calculator with support for matrices
 - [x] Matrix transposition
 - [x] Inverse (relies on determinant implementation)
 - [x] Adjugate (relies on cofactor matrix implementation)
-- [ ] Determinant 
-- [ ] Cofactor matrix
+- [x] Determinant 
+- [x] Cofactor matrix
 - [ ] Tokenizer
 - [ ] Infix to postfix convertor
 - [ ] Postfix evaluator

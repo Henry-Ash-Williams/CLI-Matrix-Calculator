@@ -1,6 +1,5 @@
 extern crate num;
 
-use std::ops::Div;
 use std::fmt;
 use std::fmt::{Display, Formatter, Debug};
 use std::marker::PhantomData;
@@ -67,7 +66,7 @@ impl<'a, T: Float> Matrix<'a, T> {
     /// Gets the minor matrix 
     pub fn get_minor(&self, m: usize, n: usize) -> T
     where
-        T: Copy + From<i32> + PartialEq + Float,
+        T: Copy + From<i32> + PartialEq + Float + Display + Copy + Debug,
         Matrix<'a, T>: Determinant<Output = T> 
     {
         let mut minor_data: Vec<Vec<T>> = Vec::new();
@@ -82,10 +81,12 @@ impl<'a, T: Float> Matrix<'a, T> {
             minor_data.push(minor_data_row); 
         }
 
-        match self.shape_tuple() {
-            (2, 2) => (*minor_data.iter().flatten().nth(0).unwrap()).abs(),
-            _ => Matrix::from_array(minor_data).det()
-        }
+        // remove empty vectors from minor data vector
+        let minor_data: Vec<Vec<T>> = minor_data.into_iter().filter(|x| x.len() != 0).collect();
+
+        let minor = Matrix::from_array(minor_data.clone());
+
+        minor.det()
     }
     
     /// Creates a new matrix of mxn, filled with zeros
@@ -336,14 +337,12 @@ where
     }
 }
 
-// impl<'a, T, const N: usize> Square for Matrix<'a, T, N, N> {}
 
 impl<'a, T> Inverse for Matrix<'a, T> 
 where 
-    T: Copy + From<i32> + PartialEq + Div<Output = T> + MulAssign + Mul<Output = T> + Sub<Output = T> + Float + Debug + AddAssign + Display + SubAssign,
-    Matrix<'a, T>: Mul<Output = Self>
+    T: Copy + From<i32> + SubAssign + Display + AddAssign + Debug + Float + MulAssign
 {
-    type Output = Self;
+    type Output = Matrix<'a, T>;
     fn inv(&self) -> <Self as crate::traits::Inverse>::Output {
         if self.shape.m != self.shape.n {
             panic!("Matrix is not invertable");
@@ -351,8 +350,7 @@ where
         if self.det() == 0.into() {
             panic!("Matrix is not invertable");
         } else {
-            // (num::NumCast::from(1.0).unwrap() / self.det()) * self.adj()
-            todo!()
+            self.adj() * self.det().recip()
         }
     }   
 }
@@ -361,7 +359,7 @@ impl<'a, T> Adjugate for Matrix<'a, T>
 where 
     T: Copy + From<i32> + PartialEq + MulAssign + Sub<Output = T> + Mul<Output = T> + Float + Debug + AddAssign + Display + SubAssign
 {
-    type Output = Self;
+    type Output = Matrix<'a, T>;
     fn adj(&self) -> <Self as crate::traits::Adjugate>::Output {
         self.cof().transpose()
     }
@@ -386,11 +384,11 @@ where
             cofactor_matrix[(0, 1)] = num::NumCast::from(-1.0).unwrap();
             cofactor_matrix[(1, 0)] = num::NumCast::from(-1.0).unwrap();
             cofactor_matrix[(1, 1)] = num::NumCast::from(1.0).unwrap(); 
+
             cofactor_matrix[(0, 0)] *= self.get_minor(0, 0);
             cofactor_matrix[(0, 1)] *= self.get_minor(0, 1);
             cofactor_matrix[(1, 0)] *= self.get_minor(1, 0);
             cofactor_matrix[(1, 1)] *= self.get_minor(1, 1);
-
         } else {
             for i in self.data.iter().enumerate() {
                 for j in i.1.iter().enumerate() {
@@ -401,7 +399,7 @@ where
                     } else {
                         cofactor_matrix[(i.0, j.0)] = num::NumCast::from(1.0).unwrap(); 
                     }
-
+                    
                     cofactor_matrix[(i.0, j.0)] *= self.get_minor(i.0, j.0);
                 }
             }
@@ -491,7 +489,7 @@ where
 
         for i in self.data.iter() {
             for j in i.iter() {
-                display.push_str(&format!("\t{}", j));
+                display.push_str(&format!("\t{val:.1}", val=j));
             }
             display.push('\n');
         }
@@ -502,93 +500,32 @@ where
 
 
 
-// Rewrite tests, they still use const generics 
 #[cfg(test)]
 mod tests {
     use crate::*;
+
     #[test]
     fn test_init() {
-        let m: Matrix<i32, 2, 2> = Matrix::new();
-        assert_eq!(m, Matrix::from_array([[0, 0], [0, 0]]))
+        let a: Matrix<f64> = Matrix::new(3, 3);
+        assert_eq!(
+                a, 
+                Matrix { 
+                    data: vec![vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]], 
+                    shape: Shape { m: 3, n: 3},
+                    _phantom: PhantomData,
+                }
+        );
     }
 
     #[test]
-    fn test_identity_init() {
-        let m: Matrix<i32, 3, 3> = Matrix::identity();
-        assert_eq!(m, Matrix::from_array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]))
-    }
+    fn test_init_from_array() {
+        let arr: Vec<Vec<f64>> = vec![vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]];
+        let expected: Matrix<f64> = Matrix {
+            data: vec![vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]],
+            shape: Shape { m: 3, n: 3 },
+            _phantom: PhantomData,
+        };
+        assert_eq!(Matrix::from_array(arr), expected);
 
-    /* #[test]
-    fn test_get_col() {
-        let m: Matrix<i32, 3, 3> = Matrix::from_array([[1, 2, 3], [5, 6, 3], [5, 1, 5]]);
-        let mr: [&'a ]
-        assert_eq!(m.get_col(0), MatrixSlice::Column([1, 5, 5]))
-    } */
-
-    #[test]
-    fn test_add() {
-        let a = Matrix::from_array([[1, 2], [3, 4]]);
-        let b = Matrix::from_array([[4, 3], [2, 1]]);
-        assert_eq!(a + b, Matrix::from_array([[5, 5], [5, 5]]))
-    }
-
-    #[test]
-    fn test_add_assign() {
-        let mut a = Matrix::from_array([[1, 2], [3, 4]]);
-        let b = Matrix::from_array([[4, 3], [2, 1]]);
-        a += b;
-        assert_eq!(a, Matrix::from_array([[5, 5], [5, 5]]))
-    }
-
-    #[test]
-    fn test_sub() {
-        let a = Matrix::from_array([[1, 2], [3, 4]]);
-        let b = Matrix::from_array([[4, 3], [2, 1]]);
-        assert_eq!(a - b, Matrix::from_array([[-3, -1], [1, 3]]))
-    }
-
-    #[test]
-    fn test_sub_assign() {
-        let mut a = Matrix::from_array([[1, 2], [3, 4]]);
-        let b = Matrix::from_array([[4, 3], [2, 1]]);
-        a -= b;
-        assert_eq!(a, Matrix::from_array([[-3, -1], [1, 3]]))
-    }
-
-    #[test]
-    fn test_scalar_mul() {
-        let a = Matrix::from_array([[3, 1], [2, 6]]);
-        let s = 5;
-        assert_eq!(a * s, Matrix::from_array([[15, 5], [10, 30]]))
-    }
-
-    #[test]
-    fn test_scalar_mul_assign() {
-        let mut a = Matrix::from_array([[3, 1], [2, 6]]);
-        a *= 5;
-        assert_eq!(a, Matrix::from_array([[15, 5], [10, 30]]))
-    }
-
-    #[test]
-    fn test_matrix_multiplication_1() {
-        // test multiplication with two NxN matrices
-        let a = Matrix::from_array([[3, 1], [2, 6]]);
-        let b = Matrix::from_array([[6, 2], [0, 5]]);
-        assert_eq!(a * b, Matrix::from_array([[18, 11], [12, 34]]))
-    }
-
-    #[test]
-    fn test_matrix_multiplication_2() {
-        // test multiplication with MxN and NxP matrices
-        let a = Matrix::from_array([[3, 6], [3, 1], [6, 3]]);
-        let b = Matrix::from_array([[2, 5, 7], [6, 2, 0]]);
-        let c = Matrix::from_array([[42, 27, 21], [12, 17, 21], [30, 36, 42]]);
-        assert_eq!(a * b, c)
-    }
-
-    #[test]
-    fn test_2x2_determinant() {
-        let a = Matrix::from_array([[3, 1], [2, 6]]);
-        assert_eq!(a.det(), 16);
     }
 }
