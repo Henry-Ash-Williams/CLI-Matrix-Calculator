@@ -8,10 +8,13 @@ use std::str::FromStr;
 
 use num::traits::*;
 
-pub mod traits;
-pub mod matrix_macro;
+mod traits;
+mod matrix_macro;
+mod error;
 
 pub use traits::*;
+pub use matrix_macro::*;
+pub use error::*;
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct Matrix<'a, T> {
@@ -81,7 +84,8 @@ impl<'a, T: Float> Matrix<'a, T> {
             minor_data.push(minor_data_row); 
         }
 
-        // remove empty vectors from minor data vector
+        // remove empty vectors from minor data vector, mainly so determinant call works for 1x1
+        // matrices 
         let minor_data: Vec<Vec<T>> = minor_data.into_iter().filter(|x| x.len() != 0).collect();
 
         let minor = Matrix::from_array(minor_data.clone());
@@ -133,35 +137,34 @@ impl<'a, T: Float> Matrix<'a, T> {
         self.shape.as_tuple()
     }
 
-    pub fn add_checked(&self, other: Self) -> Result<Self, ()> 
+    pub fn add_checked(&self, other: Self) -> Result<Self, Error> 
     where 
         T: Add<Output = T> + Copy + From<i32>
     {
         if self.shape != other.shape {
-            Err(())
+            Err(Error::ShapeError(ShapeErrorKind::ShapeNotEqual))
         } else {
             Ok(self.clone() + other)
         }
     }
 
-    pub fn mul_checked(&self, other: Self) -> Result<Self, ()> 
+    pub fn mul_checked(&self, other: Self) -> Result<Self, Error> 
     where
         T: Add<Output = T> + AddAssign + Mul<Output = T> + Copy + From<i32>,
     {
         if self.shape.n != other.shape.m {
-            println!("Cannot multiply matrix of shape {:?} by matrix of shape {:?}", self.shape, other.shape);
-            Err(())
+            Err(Error::ShapeError(ShapeErrorKind::MatrixMultiplicationShapeError))
         } else {
             Ok(self.clone() * other)
         }
     }
     
-    pub fn sub_checked(&self, other: Self) -> Result<Self, ()> 
+    pub fn sub_checked(&self, other: Self) -> Result<Self, Error> 
     where
         T: Sub<Output = T> + Copy + From<i32>,
     {
         if self.shape != other.shape {
-            Err(())
+            Err(Error::ShapeError(ShapeErrorKind::ShapeNotEqual))
         } else {
             Ok(self.clone() - other)
         }
@@ -431,14 +434,14 @@ where
             data.push(data_row);
         }
 
-
         Matrix::from_array(data)
     }
 }
 
 impl<'a, T: Float> Determinant for Matrix<'a, T> 
 where
-    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy + Debug + AddAssign + MulAssign + Display + SubAssign 
+    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy +
+       Debug + AddAssign + MulAssign + Display + SubAssign 
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
@@ -526,6 +529,5 @@ mod tests {
             _phantom: PhantomData,
         };
         assert_eq!(Matrix::from_array(arr), expected);
-
     }
 }
