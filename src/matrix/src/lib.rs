@@ -440,8 +440,8 @@ where
 
 impl<'a, T: Float> Determinant for Matrix<'a, T> 
 where
-    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy +
-       Debug + AddAssign + MulAssign + Display + SubAssign 
+    T: PartialEq + From<i32> + Mul<Output = T> + Sub<Output = T> + Copy
+        + Debug + AddAssign + MulAssign + Display + SubAssign 
 {
     type Output = T;
     fn det(&self) -> <Self as crate::traits::Determinant>::Output {
