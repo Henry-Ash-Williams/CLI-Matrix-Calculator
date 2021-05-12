@@ -530,4 +530,105 @@ mod tests {
         };
         assert_eq!(Matrix::from_array(arr), expected);
     }
+
+    #[test]
+    fn test_matrix_add() {
+        let a = matrix![[1.0, 2.0], [3.0, 4.0]];
+        let b = matrix![[4.0, 3.0], [2.0, 1.0]]; 
+        let expected = matrix![[5.0, 5.0], [5.0, 5.0]]; 
+
+        assert_eq!(a + b, expected); 
+    }
+    
+    #[test]
+    fn test_matrix_add_assign() {
+        let mut a = matrix![[1.0, 2.0], [3.0, 4.0]];
+        let b = matrix![[4.0, 3.0], [2.0, 1.0]]; 
+        let expected = matrix![[5.0, 5.0], [5.0, 5.0]]; 
+
+        a += b; 
+
+        assert_eq!(a, expected); 
+    }
+    
+    #[test]
+    fn test_matrix_sub() {
+        let a = matrix![[5.0, 5.0], [5.0, 5.0]];
+        let b = matrix![[4.0, 3.0], [2.0, 1.0]]; 
+        let expected = matrix![[1.0, 2.0], [3.0, 4.0]]; 
+
+        assert_eq!(a - b, expected); 
+    }
+    
+    #[test]
+    fn test_matrix_sub_assign() {
+        let mut a = matrix![[5.0, 5.0], [5.0, 5.0]];
+        let b = matrix![[4.0, 3.0], [2.0, 1.0]]; 
+        let expected = matrix![[1.0, 2.0], [3.0, 4.0]]; 
+
+        a -= b; 
+
+        assert_eq!(a, expected); 
+    }
+
+    #[test]
+    fn test_matrix_scale() {
+        let a = matrix![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]; 
+        let s = 5.0;
+
+        let expected = matrix![[5.0, 10.0, 15.0], [20.0, 25.0, 30.0], [35.0, 40.0, 45.0]];
+
+        assert_eq!(a * s, expected); 
+    }
+    
+    #[test]
+    fn test_matrix_mul() {
+        let a = matrix![[5.0, 5.0, 2.0], [5.0, 4.0, 3.0], [1.0, 1.0, 5.0]]; 
+        let b = matrix![[5.0, 5.0, 1.0], [1.0, 3.0, 3.0], [5.0, 5.0, 5.0]]; 
+        let c = matrix![[4.0, 4.0], [3.0, 4.0], [4.0, 1.0]]; 
+
+        assert_eq!(a.clone() * b, matrix![[40.0, 50.0, 30.0], [44.0, 52.0, 32.0], [31.0, 33.0, 29.0]]);
+        assert_eq!(a * c, matrix![[43.0, 42.0], [44.0, 39.0], [27.0, 13.0]]);
+    }
+
+    #[test]
+    fn test_matrix_inv() {
+        let a = matrix![[4.0, 8.0, 1.0], [7.0, 1.0, 1.0], [2.0, 3.0, 9.0]]; 
+        let expected = matrix![[-0.01348314606741573, 0.1550561797752809, -0.015730337078651686], [0.13707865168539327, -0.07640449438202247, -0.006741573033707865], [-0.04269662921348315, -0.008988764044943821, 0.11685393258426967]]; 
+
+        assert_eq!(a.inv(), expected); 
+    }
+
+    #[test]
+    fn test_matrix_det() {
+        let a = matrix![[4.0, 8.0, 1.0], [7.0, 1.0, 1.0], [2.0, 3.0, 9.0]]; 
+        let expected = -445.0; 
+
+        assert_eq!(a.det(), expected); 
+    }
+
+    #[test]
+    fn test_matrix_transpose() {
+        let a = matrix![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
+        let expected = matrix![[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]];
+
+        assert_eq!(a.transpose(), expected); 
+    }
+
+    #[test]
+    fn test_matrix_adj() {
+        let a = matrix![[4.0, 8.0, 1.0], [7.0, 1.0, 1.0], [2.0, 3.0, 9.0]]; 
+        let expected = matrix![[6.0, -69.0, 7.0], [-61.0, 34.0, 3.0], [19.0, 4.0, -52.0]];
+
+        assert_eq!(a.adj(), expected); 
+    }
+
+    #[test]
+    fn test_matrix_cof() {
+        let a = matrix![[4.0, 8.0, 1.0], [7.0, 1.0, 1.0], [2.0, 3.0, 9.0]]; 
+        let expected = matrix![[6.0, -61.0, 19.0], [-69.0, 34.0, 4.0], [7.0, 3.0, -52.0]];
+
+        assert_eq!(a.cof(), expected); 
+    }
 }
+

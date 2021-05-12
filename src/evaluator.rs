@@ -22,6 +22,30 @@ pub enum Value<'a> {
     Matrix(Matrix<'a, f64>),
 }
 
+impl<'a> Value<'a> {
+    pub fn is_number(&self) -> bool {
+        if let Value::Number(_) = *self { true } else { false } 
+    }
+    
+    pub fn is_matrix(&self) -> bool {
+        if let Value::Matrix(_) = *self { true } else { false } 
+    }
+
+    pub fn unwrap_number(&self) -> f64 {
+        match *self {
+            Value::Number(n) => n,
+            Value::Matrix(_) => panic!("Cannot unwrap matrix from number variant")
+        }
+    }
+    
+    pub fn unwrap_matrixk(&self) -> Matrix<'a, f64> {
+        match *self {
+            Value::Matrix(m) => m, 
+            Value::Number(_) => panic!("Cannot unwrap matrix from number variant"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Token<'a> {
     Operator(Operator),
@@ -105,7 +129,7 @@ pub fn get_matrix_from_token<'a>(token: Token<'a>) -> Matrix<'a, f64> {
 /// Tokenize a raw string input, no support for variables yet lol
 pub fn tokenize<'a, S: AsRef<str>>(raw: &mut S) -> Vec<Token<'a>> {
     let mut tokens: Vec<Token<'a>> = Vec::new();
-    let mut raw = raw.as_ref();
+    let mut raw = clean_input_string(raw.as_ref());
     // let raw: String = raw.as_ref().chars().filter(|c| !c.is_whitespace()).collect();
     let mut iterator = raw.chars();
 
@@ -129,7 +153,6 @@ pub fn tokenize<'a, S: AsRef<str>>(raw: &mut S) -> Vec<Token<'a>> {
                     }
                 ),
             '0'..='9' => Token::Value(Value::Number(get_number(&mut iterator, c))),
-            '$' => Token::Identifier(get_identifier(&mut iterator)),
             _ => Token::Unknown(c),
         });
     }
@@ -162,26 +185,92 @@ pub fn evaluate_unary<'a>(tokens: &'a mut Vec<Token<'a>>) -> Vec<Token<'a>> {
 }
 
 pub fn strip_unmatched_scope_operators<'a>(tokens: &'a mut Vec<Token<'a>>) -> Vec<Token<'a>> {
-    let mut stripped: Vec<Token<'a>> = Vec::new(); 
-    let mut iter = tokens.iter(); 
-    let mut scope_open = false; 
-
-    while let Some(t) = iter.next() {
-        scope_open = if let Token::OpenScope = t { true } else { false }; 
-
-        if let Token::CloseScope = t {
-            if scope_open {
-                stripped.push(t.clone()); 
-                continue ;
-            } else {
-                continue ;
-            }
+    let mut count = 0; 
+    for i in tokens.into_iter() {
+        if let Token::OpenScope = i {
+            count += 1; 
+        } else if let Token::CloseScope = i {
+            count -= 1; 
         }
-
-        stripped.push(t.clone()); 
     }
-    stripped
+
+    if count == 0 {
+        tokens.clone()
+    } else {
+        let mut stripped: Vec<Token<'a>> = Vec::new(); 
+        let mut iter = tokens.iter(); 
+        let mut scope_open = false; 
+
+        while let Some(t) = iter.next() {
+            scope_open = if let Token::OpenScope = t { true } else { false }; 
+
+            if let Token::CloseScope = t {
+                if !scope_open {
+                    stripped.push(t.clone()); 
+                    scope_open = !scope_open; 
+                    continue ;
+                } else {
+                    continue ;
+                }
+            }
+
+            stripped.push(t.clone()); 
+        }
+        stripped
+    }
 }
 
-// pub fn find_open_scope<'a>(iterator: &mut Iter)
+pub fn clean_input_string<S: AsRef<str>>(input: S) -> String {
+    let tmp: &str = input.as_ref(); 
+    let mut clean = String::new(); 
+    
+    for c in tmp.chars() {
+        if c == '(' {
+            clean.push_str(" ( ");
+        } else if c == ')' {
+            clean.push_str(" ) "); 
+        } else {
+            clean.push(c);
+        }
+    }
 
+    clean 
+}
+
+pub fn evaluate_addition(operand_1: Value<'a>, operand_2: Value<'a>, result: &mut Value<'a>) -> Value<'a> {
+    let res = match (operand_1.is_number(), operand_2.is_number()) {
+        (true, true) => Value::Number(operand_1.unwrap_number() + operand_2.unwrap_number()), 
+        (false, true) | (true, false) => panic!("cannot add matrix to number"),
+        (false, false) => Value::Matrix(operand_1.unwrap_matrix().add_checked(operand_2.unwrap_matrix()).unwrap()),
+    }
+    
+
+
+}
+
+pub fn evaluate<'a>(tokens: &'a mut Vec<Token<'a>>) -> Token<'a> {
+    let mut operator_stack: Vec<Operator> = Vec::new(); 
+    let mut operand_stack: Vec<Value<'a>> = Vec::new(); 
+    let mut iterator = tokens.into_iter(); 
+
+    let mut result: Value = Value::Number(0.0);
+
+    while let Some(t) = iterator.next() {
+        match t {
+            Token::Value(v) => operand_stack.push_back(v.clone()),
+            Token::Operator(o) => { 
+                let operand_1 = operand_stack.pop_back();
+                let operand_2 = operand_stack.pop_back(); 
+
+                match o { 
+                    Operator::Addition => 
+                    _ => () 
+                }
+            },
+            _ => ()
+
+        }
+    }
+
+    Token::Value(result)
+}
