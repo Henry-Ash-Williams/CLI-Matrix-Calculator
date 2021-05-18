@@ -1,8 +1,9 @@
 use std::str::Chars;
 
-use matrix::*;
+#[macro_use]
+use matrix::{Matrix, Inverse, Transpose, CofactorMatrix, Adjugate, Determinant};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Operator {
     Addition,
     Subtraction,
@@ -16,7 +17,7 @@ pub enum Operator {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
     Number(f64),
     Matrix(Matrix<'a, f64>),
@@ -39,14 +40,14 @@ impl<'a> Value<'a> {
     }
     
     pub fn unwrap_matrixk(&self) -> Matrix<'a, f64> {
-        match *self {
-            Value::Matrix(m) => m, 
+        match self {
+            Value::Matrix(m) => m.clone(), 
             Value::Number(_) => panic!("Cannot unwrap matrix from number variant"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token<'a> {
     Operator(Operator),
     OpenScope,
@@ -237,7 +238,7 @@ pub fn clean_input_string<S: AsRef<str>>(input: S) -> String {
     clean 
 }
 
-pub fn evaluate_addition(operand_1: Value<'a>, operand_2: Value<'a>, result: &mut Value<'a>) -> Value<'a> {
+/* pub fn evaluate_addition(operand_1: Value<'a>, operand_2: Value<'a>, result: &mut Value<'a>) -> Value<'a> {
     let res = match (operand_1.is_number(), operand_2.is_number()) {
         (true, true) => Value::Number(operand_1.unwrap_number() + operand_2.unwrap_number()), 
         (false, true) | (true, false) => panic!("cannot add matrix to number"),
@@ -246,9 +247,9 @@ pub fn evaluate_addition(operand_1: Value<'a>, operand_2: Value<'a>, result: &mu
     
 
 
-}
+} */ 
 
-pub fn evaluate<'a>(tokens: &'a mut Vec<Token<'a>>) -> Token<'a> {
+/* pub fn evaluate<'a>(tokens: &'a mut Vec<Token<'a>>) -> Token<'a> {
     let mut operator_stack: Vec<Operator> = Vec::new(); 
     let mut operand_stack: Vec<Value<'a>> = Vec::new(); 
     let mut iterator = tokens.into_iter(); 
@@ -273,4 +274,42 @@ pub fn evaluate<'a>(tokens: &'a mut Vec<Token<'a>>) -> Token<'a> {
     }
 
     Token::Value(result)
+} */ 
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_tokenizer_1() {
+        // Passes 
+        let mut input_buffer = clean_input_string(String::from("1 / 10 * [1,2,3;4,5,6;7,8,9]")); 
+        let expected = vec![
+            Token::Value(Value::Number(1.0)),
+            Token::Operator(Operator::Division),
+            Token::Value(Value::Number(10.0)),
+            Token::Operator(Operator::Multiplication),
+            Token::Value(Value::Matrix(matrix::matrix![[1.0,2.0,3.0], [4.0,5.0,6.0], [7.0,8.0,9.0]]))
+        ]; 
+
+        let mut tokens = tokenize(&mut input_buffer); 
+        let tokens = evaluate_unary(&mut tokens); 
+
+        assert_eq!(tokens, expected);
+    }
+    
+    #[test]
+    fn test_tokenizer_2() {
+        let mut input_buffer = clean_input_string(String::from("inv([1,2,3;4,5,6;7,8,9]) * [1,2,3;4,5,6;7,8,9]")); 
+        let expected = vec![
+            Token::Operator(Operator::Inverse),
+            Token::Value(Value::Matrix(matrix::matrix![[1.0,2.0,3.0],[4.0,5.0,6.0],[7.0,8.0,9.0]])),
+            Token::Operator(Operator::Multiplication),
+            Token::Value(Value::Matrix(matrix::matrix![[1.0,2.0,3.0],[4.0,5.0,6.0],[7.0,8.0,9.0]])),
+        ]; 
+
+        let mut tokens = tokenize(&mut input_buffer); 
+
+        assert_eq!(tokens, expected);
+    }
 }

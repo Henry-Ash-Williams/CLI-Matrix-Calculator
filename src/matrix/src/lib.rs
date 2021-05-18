@@ -9,6 +9,7 @@ use std::str::FromStr;
 use num::traits::*;
 
 mod traits;
+
 mod matrix_macro;
 mod error;
 
